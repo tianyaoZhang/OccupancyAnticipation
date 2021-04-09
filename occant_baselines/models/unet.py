@@ -232,7 +232,7 @@ class ResNetRGBEncoder(nn.Module):
     Encodes RGB image via ResNet block1, block2 and merges them.
     """
 
-    def __init__(self, resnet_type="resnet50"):
+    def __init__(self, resnet_type="resnet50", embed_fn=None):
         super().__init__()
         if resnet_type == "resnet50":
             resnet = tmodels.resnet50(pretrained=True)
@@ -240,6 +240,8 @@ class ResNetRGBEncoder(nn.Module):
             resnet = tmodels.resnet18(pretrained=True)
         else:
             raise ValueError(f"ResNet type {resnet_type} not defined!")
+
+        self.embed_fn = embed_fn
 
         self.resnet_base = nn.Sequential(  # (B, 3, H, W)
             resnet.conv1, resnet.bn1, resnet.relu, resnet.maxpool
@@ -259,5 +261,8 @@ class ResNetRGBEncoder(nn.Module):
             x_block1, 3, stride=2, padding=1
         )  # (bs, 256, H/8, W/8)
         x_feat = torch.cat([x_block1_red, x_block2], dim=1)  # (bs, 768, H/8, W/8)
+        if self.embed_fn:
+            x_embed = self.embed_fn(x)
+            x_feat = torch.cat([x_feat, x_embed], dim=1)
 
         return x_feat

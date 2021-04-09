@@ -17,6 +17,7 @@ from occant_baselines.models.unet import (
     MergeMultimodal,
     ResNetRGBEncoder,
 )
+from occant_utils.embedder import get_embedder
 
 
 def softmax_2d(x):
@@ -160,12 +161,19 @@ class OccAntRGB(BaseModel):
         resnet_type = (
             gp_cfg.resnet_type if hasattr(gp_cfg, "resnet_type") else "resnet50"
         )
-        infeats = 768 if resnet_type == "resnet50" else 192
+        infeats = 768 if "resnet50" in resnet_type else 192
+        embed_fn = None
+        if "multires" in resnet_type:  # "resnet18-Multires6"
+            multires = resnet_type.split('multires')[-1]
+            embed_fn, input_ch = get_embedder(multires)
+            infeats+=input_ch
+            resnet_type = resnet_type.split("-")[0]     # resnet18
+            print(f"--> using embedder: multires={multires}")
         nsf = gp_cfg.unet_nsf
         unet_feat_size = nsf * 8
 
         # RGB encoder branch
-        self.gp_rgb_encoder = ResNetRGBEncoder(resnet_type)
+        self.gp_rgb_encoder = ResNetRGBEncoder(resnet_type,embed_fn)
         self.gp_rgb_projector = LearnedRGBProjection(mtype="upsample", infeats=infeats)
         self.gp_rgb_unet = MiniUNetEncoder(infeats, unet_feat_size)
 
