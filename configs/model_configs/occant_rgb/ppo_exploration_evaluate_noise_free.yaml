@@ -1,0 +1,42 @@
+BASE_TASK_CONFIG_PATH: "configs/exploration/gibson_evaluate_noise_free.yaml"
+TRAINER_NAME: "occant_exp"
+ENV_NAME: "ExpRLEnv"
+SIMULATOR_GPU_ID: 0
+SIMULATOR_GPU_IDS: [0]
+TORCH_GPU_ID: 0
+VIDEO_OPTION: ["disk"]
+TENSORBOARD_DIR: "eval_tb"
+VIDEO_DIR: "video_dir"
+EVAL_CKPT_PATH_DIR: "data/new_checkpoints/OccAnt(rgb)/ckpt.11.pth"
+NUM_PROCESSES: 1
+SENSORS: ["RGB_SENSOR", "DEPTH_SENSOR"]
+CHECKPOINT_FOLDER: "data/new_checkpoints"
+NUM_EPISODES: 10000
+T_EXP: 500
+TEST_EPISODE_COUNT: 2
+# ---------------zty-------------------
+EXPERIMENT_NAME: "EXPS/debug/occant_rgb_eval"
+USE_TIMESTAMP: True
+CONTINUE: True
+# ---------------zty-------------------
+
+EVAL:
+  USE_CKPT_CONFIG: False
+
+RL:
+  ANS:
+    goal_success_radius: 0.2 # 2 x agent radius
+#    planning_step: 0.25
+    image_scale_hw: [128, 128]
+    MAPPER:
+      map_size: 65
+      registration_type: "moving_average"
+      ignore_pose_estimator: True
+      use_data_parallel: True
+      gpu_ids: [0]
+    OCCUPANCY_ANTICIPATOR:
+      type: "occant_rgb"
+    LOCAL_POLICY:
+      use_heuristic_policy: False
+#    PLANNER:
+#      nplanners: 4

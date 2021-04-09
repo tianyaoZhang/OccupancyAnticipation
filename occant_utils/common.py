@@ -65,8 +65,8 @@ def spatial_transform_map(p, x, invert=True, mode="bilinear"):
         Ainv = torch.inverse(Ainv)
 
     Ainv = Ainv[:, :2]
-    grid = F.affine_grid(Ainv, p.size())
-    p_trans = F.grid_sample(p, grid, mode=mode)
+    grid = F.affine_grid(Ainv, p.size(),align_corners=True)
+    p_trans = F.grid_sample(p, grid, mode=mode,align_corners=True)
 
     return p_trans
 

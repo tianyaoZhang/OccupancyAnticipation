@@ -75,7 +75,7 @@ def ground_projection(img_feats, spatial_locs, valid_inputs, local_shape, K, eps
     )
     input_idxes_rshp = input_idxes_rshp.view(bs, 1, -1).expand(-1, F, -1)
     output_feats_rshp, _ = torch_scatter.scatter_max(
-        input_feats_rshp, input_idxes_rshp, dim=2, dim_size=outh * outw, fill_value=eps,
+        input_feats_rshp, input_idxes_rshp, dim=2, dim_size=outh * outw #, fill_value=eps,
     )
     output_feats = output_feats_rshp.view(bs, F, outh, outw)
     eps_mask = (output_feats == eps).float()

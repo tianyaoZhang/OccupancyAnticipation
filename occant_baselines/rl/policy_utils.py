@@ -48,7 +48,7 @@ class OccupancyAnticipationWrapper(nn.Module):
         for k in x_full.keys():
             if k in self.keys_to_interpolate:
                 x_full[k] = F.interpolate(
-                    x_full[k], size=(self.V, self.V), mode="bilinear"
+                    x_full[k], size=(self.V, self.V), mode="bilinear",align_corners = False
                 )
         return x_full
 
