@@ -18,6 +18,11 @@ CONFIG_FILE_SEPARATOR = ","
 # EXPERIMENT CONFIG
 # -----------------------------------------------------------------------------
 _C = CN()
+# --------- zty -------------
+_C.CONTINUE = False
+_C.USE_TIMESTAMP = False
+_C.WANDB_ID = None
+# --------- zty -------------
 _C.PYT_RANDOM_SEED = 123
 _C.BASE_TASK_CONFIG_PATH = "habitat_extensions/config/exploration_gibson.yaml"
 _C.TASK_CONFIG = CN()  # task_config will be stored as a config node

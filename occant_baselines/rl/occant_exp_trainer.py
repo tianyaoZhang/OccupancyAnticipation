@@ -63,6 +63,7 @@ from occant_baselines.models.mapnet import DepthProjectionNet
 from occant_baselines.models.occant import OccupancyAnticipator
 from einops import rearrange, asnumpy
 
+import wandb
 
 @baseline_registry.register_trainer(name="occant_exp")
 class OccAntExpTrainer(BaseRLTrainer):
@@ -74,6 +75,7 @@ class OccAntExpTrainer(BaseRLTrainer):
     def __init__(self, config=None):
         if config is not None:
             self._synchronize_configs(config)
+            self.wandb= wandb.init(id=config.WANDB_ID) if config.WANDB_ID else None
         super().__init__(config)
 
         # Set pytorch random seed for initialization
@@ -240,6 +242,20 @@ class OccAntExpTrainer(BaseRLTrainer):
         )
         if ans_cfg.model_path != "":
             self.resume_checkpoint(ans_cfg.model_path)
+
+        # # 3. Log gradients and model parameters
+        # self.wandb.watch(self.mapper.pose_estimator)
+        # wandb.watch(self.global_actor_critic)
+        # wandb.watch(self.local_actor_critic)
+        if self.wandb:
+            self.wandb.watch([self.global_agent,                #0
+                              self.local_agent,                 #1
+                              self.mapper_agent.mapper_copy,    #0
+                              self.local_actor_critic.base,
+                              self.global_actor_critic.actor,
+                              self.global_actor_critic.critic
+                              ])
+        # self.wandb.watch(self.local_actor_critic.base)
 
     def save_checkpoint(
         self, file_name: str, extra_state: Optional[Dict] = None
@@ -995,7 +1011,7 @@ class OccAntExpTrainer(BaseRLTrainer):
         t_start = time.time()
         env_time = 0
         pth_time = 0
-        count_steps = 0
+        count_episode = 0
         count_checkpoints = 0
 
         # ==================== Measuring memory consumption ===================
@@ -1200,6 +1216,13 @@ class OccAntExpTrainer(BaseRLTrainer):
                             if len(vp) > 0:
                                 writer.add_scalar(f"{k}/{kp}", np.mean(vp), count_steps)
                                 logger.info(f"{kp:25s}: {np.mean(vp).item():10.5f}")
+                                if self.wandb:
+                                    self.wandb.log({
+                                        f"{k}/{kp}":np.mean(vp),
+                                        "count_steps":count_steps,
+                                        "update": update,
+                                        "count_episode": count_episode
+                                    })
 
                     for k, v in running_episode_stats.items():
                         window_episode_stats[k].append(v.clone())
@@ -1226,6 +1249,16 @@ class OccAntExpTrainer(BaseRLTrainer):
                     )
                     fps = (count_steps - count_steps_start) / (time.time() - t_start)
                     writer.add_scalar("fps", fps, count_steps)
+
+                    if self.wandb:
+                        self.wandb.log({
+                            "local_reward": deltas["local_reward"] / deltas["count"],
+                            "global_reward": deltas["global_reward"] / deltas["count"],
+                            'fps': fps,
+                            "count_steps":count_steps,
+                            "update": update,
+                            "count_episode": count_episode
+                        })
 
                     if update > 0:
                         logger.info("update: {}\tfps: {:.3f}\t".format(update, fps))
@@ -1287,6 +1320,7 @@ class OccAntExpTrainer(BaseRLTrainer):
 
                 # Manually enforce episode termination criterion
                 if episode_step_count[0].item() == self.config.T_EXP:
+                    count_episode+=1
 
                     # Update episode rewards
                     running_episode_stats["local_reward"] += (
@@ -1620,7 +1654,7 @@ class OccAntExpTrainer(BaseRLTrainer):
                             number_of_eval_episodes - ep - 1
                         )
                         logger.info(
-                            f"====> episode {ep}/{number_of_eval_episodes} done"
+                            f"====> episode {ep}/{number_of_eval_episodes} [episode_id={current_episodes[0].episode_id}] done"
                         )
                         logger.info(
                             f"Time per episode: {mins_per_episode:.3f} mins"
@@ -1628,6 +1662,11 @@ class OccAntExpTrainer(BaseRLTrainer):
                         )
                         for k, v in curr_all_metrics.items():
                             logger.info(f"{k:30s}: {v/self.envs.num_envs:8.3f}")
+                            if self.wandb:
+                                self.wandb.log({
+                                    f'episodes/{k}':v/self.envs.num_envs,
+                                    'episode':ep,
+                                })
 
                 for i in range(n_envs):
                     if (
@@ -1783,6 +1822,8 @@ class OccAntExpTrainer(BaseRLTrainer):
             for kp in sorted(list(metric_all_times.keys())):
                 vp = metric_all_times[kp]
                 logger.info(f"{k}: {kp},{vp}")
+                if self.wandb:
+                    self.wandb.log({f"mapping_evaluation/{k}":vp,'ep_step':kp})
             writer.add_scalar(
                 f"mapping_evaluation/{k}", v.get_last_metric(), num_frames_per_process,
             )
@@ -1793,6 +1834,8 @@ class OccAntExpTrainer(BaseRLTrainer):
             for kp in sorted(list(metric_all_times.keys())):
                 vp = metric_all_times[kp]
                 logger.info(f"{k}: {kp},{vp}")
+                if self.wandb:
+                    self.wandb.log({f"pose_estimation_evaluation/{k}": vp, 'ep_step': kp})
             writer.add_scalar(
                 f"pose_estimation_evaluation/{k}",
                 v.get_last_metric(),
